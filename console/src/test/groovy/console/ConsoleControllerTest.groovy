@@ -1,40 +1,71 @@
 package console
 
 import griffon.core.artifact.ArtifactManager
+import griffon.core.injection.Module
 import griffon.core.test.GriffonUnitRule
 import griffon.core.test.TestFor
+import griffon.inject.DependsOn
+import org.codehaus.griffon.runtime.core.injection.AbstractTestingModule
 import org.junit.Rule
 import org.junit.Test
 
+import javax.annotation.Nonnull
 import javax.inject.Inject
 
-import static org.awaitility.Awaitility.await
 import static java.util.concurrent.TimeUnit.SECONDS
+import static org.awaitility.Awaitility.await
+import static org.awaitility.Awaitility.fieldIn
+import static org.hamcrest.Matchers.notNullValue
 
 @TestFor(ConsoleController)
 class ConsoleControllerTest {
-    static {
-        System.setProperty('org.slf4j.simpleLogger.defaultLogLevel', 'trace')
-    }
+    private ConsoleController controller
 
     @Inject
     private ArtifactManager artifactManager
-
-    private ConsoleController controller
 
     @Rule
     public final GriffonUnitRule griffon = new GriffonUnitRule()
 
     @Test
-    void executeClickAction() {
+    void testExecuteScriptAction() {
         // given:
-        controller.model = artifactManager.newInstance(ConsoleModel)
+        ConsoleModel model = artifactManager.newInstance(ConsoleModel.class)
+        controller.model = model
 
         // when:
-        controller.invokeAction('click')
-        await().atMost(2, SECONDS)
+        String input = 'var = "Griffon"'
+        model.scriptSource = input
+        controller.invokeAction('executeScript')
 
         // then:
-        assert 1 == controller.model.clickCount
+        await().atMost(2, SECONDS)
+                .until(fieldIn(model)
+                .ofType(Object)
+                .andWithName('scriptResult'),
+                notNullValue())
+        assert input == model.scriptResult
+    }
+
+    private static class EchoEvaluator implements Evaluator {
+        @Override
+        Object evaluate(String input) {
+            input
+        }
+    }
+
+    @DependsOn('application')
+    private static class TestModule extends AbstractTestingModule {
+        @Override
+        protected void doConfigure() {
+            bind(Evaluator)
+                    .to(EchoEvaluator)
+                    .asSingleton()
+        }
+    }
+
+    @Nonnull
+    private List<Module> moduleOverrides() {
+        [new TestModule()]
     }
 }

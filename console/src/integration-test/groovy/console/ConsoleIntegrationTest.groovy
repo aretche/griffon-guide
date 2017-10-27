@@ -19,13 +19,6 @@ class ConsoleIntegrationTest {
 
     @Test
     void clickButton() {
-        // given:
-        window.label('clickLabel').requireText('0')
 
-        // when:
-        window.button('clickButton').click()
-
-        // then:
-        window.label('clickLabel').requireText('1')
     }
 }
